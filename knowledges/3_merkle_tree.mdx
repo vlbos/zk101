@@ -1,0 +1,110 @@
+import MerkleTree from '@/components/MerkleTree';
+
+## 默克尔树是什么？
+
+默克尔树（Merkle Tree）是一种数据结构，用于存储和验证一组数据块的完整性。它由一个根节点和多个中间节点组成，每个节点都包含一个哈希值。  
+以太坊的状态数据存储MPT（Merkle Patricia Tree），就是基于默克尔树的，但是他和默克尔树的结构上有所不同，在先理解默克尔树的基础上，再理解MPT会更容易。
+
+## 默克尔树的结构
+
+```mermaid
+graph TD
+
+%% Root 节点
+R["Top Hash<br/>hash(Hash 0, Hash 1)"]
+
+%% 第二层
+H0["Hash 0<br/>hash(Hash 0-0, Hash 0-1)"]
+H1["Hash 1<br/>hash(hash(5), hash(6))"]
+
+%% 第三层
+H00["Hash 0-0<br/>hash(hash(1), hash(2))"]
+H01["Hash 0-1<br/>hash(hash(3), hash(4))"]
+
+%% 数据哈希层
+HL1["hash(1)"]
+HL2["hash(2)"]
+HL3["hash(3)"]
+HL4["hash(4)"]
+HL5["hash(5)"]
+HL6["hash(6)"]
+
+%% 数据层
+subgraph DataBlocks["Data Blocks"]
+    direction LR
+    D1["1"]
+    D2["2"]
+    D3["3"]
+    D4["4"]
+    D5["5"]
+    D6["6"]
+end
+
+%% 连接关系
+R --> H0
+R --> H1
+H0 --> H00
+H0 --> H01
+H00 --> HL1
+H00 --> HL2
+H01 --> HL3
+H01 --> HL4
+H1 --> HL5
+H1 --> HL6
+HL1 --> D1
+HL2 --> D2
+HL3 --> D3
+HL4 --> D4
+HL5 --> D5
+HL6 --> D6
+
+%% 节点样式
+style R fill:#fff,stroke:#333
+style H0 fill:#fff,stroke:#333
+style H00 fill:#fff,stroke:#333
+style H01 fill:#fff,stroke:#333
+style H1 fill:#fff,stroke:#333
+style HL1 fill:#e6f3ff,stroke:#333
+style HL2 fill:#e6f3ff,stroke:#333
+style HL3 fill:#e6f3ff,stroke:#333
+style HL4 fill:#e6f3ff,stroke:#333
+style HL5 fill:#e6f3ff,stroke:#333
+style HL6 fill:#e6f3ff,stroke:#333
+style D1 fill:#fff8dc,stroke:#333
+style D2 fill:#fff8dc,stroke:#333
+style D3 fill:#fff8dc,stroke:#333
+style D4 fill:#fff8dc,stroke:#333
+style D5 fill:#fff8dc,stroke:#333
+style D6 fill:#fff8dc,stroke:#333
+style DataBlocks fill:none,stroke:#ddd,stroke-dasharray: 5
+```
+
+一般情况下默克尔树是一个二叉树，Root储存的是整个树的根，只要用户可以提供一个有效Path，和自身的Node，就可以轻松的检测提供的数据是否在这个树中。
+
+就如上面这个例子：
+我们现在有数据1,2,3,4,5,6，我们通过Hash函数计算出每个数据的Hash值，然后构建出默克尔树。  
+其中
+
+- Hash 0-0 = hash(hash(1), hash(2))
+- Hash 0-1 = hash(hash(3), hash(4))
+- Hash 1 = hash(hash(5), hash(6))
+- Top Hash = hash(Hash 0, Hash 1)
+
+此时，假设我是数据4，在只有Root的情况下，你如何证明你数据4在这个树🌲上？
+
+### 证明数据在树🌲上
+证明数据在树上其实的步骤非常简单，我们需要两个数据，一个是Path，一个是Node。
+
+- Path：从Root到Node的路径
+- Node：需要证明的数据
+
+在上面这个例子中，对应的数据就是
+
+- Path: [ hash(3),Hash 0-0, Hash 1 ]
+- Node: 4
+
+根据我们目前有4这个数据，可以计算出hash(4),**然后和hash(3)组合进行hash，得到Hash 0-1**。  
+然后和**Hash 0-0组合进行hash，得到Hash 0**。  
+最后和**Hash 1组合进行hash，得到Root**。  
+
+此时校验计算的Root是否和原本的Root一致，如果一致，则数据4在树🌲上。
